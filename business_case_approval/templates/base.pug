@@ -13,30 +13,40 @@ html(lang="en")
       link(rel="stylesheet", href="{{static('bootstrap-icons/bootstrap-icons.css')}}")
       link(rel="stylesheet", href="{{static('i-dot-ai/base.css')}}")
 
-    body
+
+    body#etf
+
       nav.top-bar
         div.top-bar-left
-          h2 Recruitment Exemption Business Case
+          h2 Evaluation Registry
         div.top-bar-right
-          ul
           - if request.user.is_authenticated
             a.button(href=url('account_logout')) Logout 
               i.bi-box-arrow-right
 
-      section
-        div.grid-x
-          div.cell.small-3
-          div.cell.small-6
-            {% set messages = get_messages(request) %}
-            - if messages
+      div#main.grid-x
+        div.cell.small-3
+          nav.sidebar
+              ul.vertical.tabs
+                - for page in pages
+                  li.tabs-title(class={'completed': page.completed, 'current': page.current, 'is-active': page.current})
+                    - if page.completed
+                      i.bi-check-square-fill &nbsp;
+                    - elif page.current
+                      i.bi-dash-square-fill &nbsp;
+                    - else
+                      i.bi-question-square &nbsp;
+                    = page.title
+        div.cell.small-6
+
+          {% set messages = get_messages(request) %}
+          - if messages
+            section
               - for message in messages
                 +macros.callout(message.tags)
                   p {{message}}
-          div.cell.small-3
 
-      section
-        div.grid-x
-          div.cell.small-3
-          div.cell.small-6
+          section
             block content
-          div.cell.small-3
+
+        div.cell.small-3
