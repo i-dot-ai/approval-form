@@ -10,7 +10,7 @@ section {
   border-radius: 12px;
 }
 
-.button, #etf input, #etf textarea, #etf select, .label {
+.button, #rebcaf input, #rebcaf textarea, #rebcaf select, .label {
   border-radius: 4px;
 }
 
@@ -24,11 +24,11 @@ nav.sidebar {
   margin-right: 1rem;
 }
 
-#etf nav.sidebar ul {
+#rebcaf nav.sidebar ul {
   align-items: start;
 }
 
-#etf nav.sidebar li {
+#rebcaf nav.sidebar li {
   text-align: left;
   margin: 0.25rem;
 }
