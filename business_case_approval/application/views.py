@@ -10,28 +10,7 @@ from django.utils.text import slugify
 
 from . import models
 
-page_order = (
-    "intro",
-    "name",
-    "exemption",
-    "establishment",
-    "impact",
-    "justification",
-    "location",
-    "end",
-    "print",
-    "download",
-)
-
-view_map = {}
-
-
-def register(name):
-    def _inner(func):
-        view_map[name] = func
-        return func
-
-    return _inner
+page_map = {}
 
 
 def index_view(request):
@@ -50,17 +29,31 @@ def make_url(application_id, page_name):
 
 
 def page_view(request, application_id, page_name="intro"):
-    if page_name not in page_order:
+    if page_name not in page_map:
         raise Http404()
 
-    index = page_order.index(page_name)
-    prev_page = index and page_order[index - 1] or None
-    next_page = (index < len(page_order) - 1) and page_order[index + 1] or None
+    page_name_order = tuple(page_map.keys())
+
+    index = page_name_order.index(page_name)
+    prev_page = index and page_name_order[index - 1] or None
+    next_page = (index < len(page_name_order) - 1) and page_name_order[index + 1] or None
     prev_url = make_url(application_id, prev_page)
     this_url = make_url(application_id, page_name)
     next_url = make_url(application_id, next_page)
 
+    pages = tuple(
+        {
+            "slug": _p.slug,
+            "url": make_url(application_id, _p.slug),
+            "title": _p.title,
+            "completed": page_name_order.index(_p.slug) < index,
+            "current": _p.slug == page_name,
+        }
+        for _p in page_map.values()
+    )
+
     url_data = {
+        "pages": pages,
         "application_id": application_id,
         "page_name": page_name,
         "index": index,
@@ -70,58 +63,70 @@ def page_view(request, application_id, page_name="intro"):
         "this_url": this_url,
         "next_url": next_url,
     }
-    return view_map[page_name](request, url_data)
+    return page_map[page_name].view(request, url_data)
 
 
-def _create_form_page_response(request, url_data, form_class, template_name, extra_data=None):
-    if not extra_data:
-        extra_data = {}
-    application_id = url_data["application_id"]
-    application = models.Application.objects.get(pk=application_id)
-    if request.method == "POST":
-        form = form_class(request.POST, instance=application)
-        if form.is_valid():
-            form.save()
-            return redirect(url_data["next_url"])
+class FormPage:
+    def __init__(self, title, field_names, extra_data=None):
+        self.title = title
+        self.slug = slugify(title)
+        self.field_names = field_names
+        self.template_name = f"{self.slug}.pug"
+        self.extra_data = extra_data or {}
+
+        class _Form(forms.ModelForm):
+            class Meta:
+                model = models.Application
+                fields = field_names
+
+        self.form_class = _Form
+        page_map[self.slug] = self
+
+    def view(self, request, url_data):
+        application_id = url_data["application_id"]
+        application = models.Application.objects.get(pk=application_id)
+        if request.method == "POST":
+            form = self.form_class(request.POST, instance=application)
+            if form.is_valid():
+                form.save()
+                return redirect(url_data["next_url"])
+            else:
+                data = request.POST
+                errors = form.errors
         else:
-            data = request.POST
-            errors = form.errors
-    else:
-        data = model_to_dict(application)
-        errors = {}
-    return render(request, template_name, {"errors": errors, "data": data, **url_data, **extra_data})
+            data = model_to_dict(application)
+            errors = {}
+        return render(request, self.template_name, {"errors": errors, "data": data, **url_data, **self.extra_data})
 
 
-def create_form_view(name, field_names, extra_data=None):
-    if not extra_data:
-        extra_data = {}
+class SimplePage:
+    def __init__(self, title, extra_data=None):
+        self.title = title
+        self.slug = slugify(title)
+        self.extra_data = extra_data or {}
+        page_map[self.slug] = self
 
-    class _Form(forms.ModelForm):
-        class Meta:
-            model = models.Application
-            fields = field_names
-
-    @register(name)
-    def _view(request, url_data):
-        return _create_form_page_response(
-            request, url_data, form_class=_Form, template_name=f"{name}.pug", extra_data=extra_data
-        )
+    def view(self, request, url_data):
+        return render(request, f"{self.slug}.pug", {**url_data})
 
 
-def create_simple_view(name, extra_data=None):
-    @register(name)
-    def _view(request, url_data):
-        return render(request, f"{name}.pug", {**url_data})
+class ViewPage:
+    def __init__(self, title, view, extra_data=None):
+        self.title = title
+        self.slug = slugify(title)
+        self.extra_data = extra_data or {}
+        page_map[self.slug] = self
+        self.view = view
 
 
-create_simple_view("intro")
-create_form_view("name", ("name",))
-create_form_view("exemption", ("hrbp", "grade", "title"), extra_data={"grades": models.Grades.options})
-create_form_view("establishment", ("establishment",))
-create_form_view("impact", ("impact_statement",))
-create_form_view(
-    "justification",
-    ("ddat_role", "ddat_family", "funding_source", "recruitment_type", "recruitment_mechanism"),
+SimplePage(title="Intro")
+FormPage(title="Name", field_names=("name",))
+FormPage(title="Exemption", field_names=("hrbp", "grade", "title"), extra_data={"grades": models.Grades.options})
+FormPage(title="Establishment", field_names=("establishment",))
+FormPage(title="Impact", field_names=("impact_statement",))
+FormPage(
+    title="justification",
+    field_names=("ddat_role", "ddat_family", "funding_source", "recruitment_type", "recruitment_mechanism"),
     extra_data={
         "ddat_families": models.DDATFamilies.options,
         "funding_sources": models.FundingSource.options,
@@ -129,15 +134,23 @@ create_form_view(
         "recruitment_mechanisms": models.RecruitmentMechanisms.options,
     },
 )
-create_form_view(
-    "location",
-    ("location_strategy", "locations", "london_reason"),
+FormPage(
+    title="Location",
+    field_names=("location_strategy", "locations", "london_reason"),
     extra_data={"london_reasons": models.LondonReasons.options, "locations": models.Locations.options},
 )
-create_form_view("scs_roles", ("scs_adverts", "scs_assignments_lengths"))
+FormPage(title="SCS roles", field_names=("scs_adverts", "scs_assignments_lengths"))
 
 
-@register("end")
+def register(title):
+    def _inner(func):
+        page = ViewPage(title, func)
+        return page
+
+    return _inner
+
+
+@register("End")
 def end_view(request, url_data):
     application_id = url_data["application_id"]
     application = models.Application.objects.get(pk=application_id)
@@ -150,17 +163,7 @@ def end_view(request, url_data):
     return render(request, "end.pug", {**data})
 
 
-@register("print")
-def print_view(request, url_data):
-    application_id = url_data["application_id"]
-    application = models.Application.objects.get(pk=application_id)
-    data = model_to_dict(application)
-    return render(request, "print.pug", {**data})
-
-
-@register("download")
-def download_file(request, url_data):
-    application_id = url_data["application_id"]
+def download_pdf(request, application_id):
     application = models.Application.objects.get(pk=application_id)
     filename = slugify(f"application_{application_id}_{application.name}.pdf")
     filelike = io.BytesIO(application.pdf)
