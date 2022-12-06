@@ -1,0 +1,47 @@
+#main {
+  margin-top: 3rem;
+}
+
+section {
+  margin-bottom: 3rem;
+}
+
+.card, .callout, fieldset {
+  border-radius: 12px;
+}
+
+.button, #etf input, #etf textarea, #etf select, .label {
+  border-radius: 4px;
+}
+
+.label {
+  margin-bottom: 0.125rem;
+}
+
+nav.sidebar {
+  margin: 1.25rem;
+  margin-left: 1rem;
+  margin-right: 1rem;
+}
+
+#etf nav.sidebar ul {
+  align-items: start;
+}
+
+#etf nav.sidebar li {
+  text-align: left;
+  margin: 0.25rem;
+}
+
+.completed i {
+  color: #3adb76;
+}
+
+.current i {
+  color: #1779ba;
+}
+
+ul.vertical.tabs {
+  border-radius: 12px;
+  padding: 1.25rem;
+}
