@@ -48,7 +48,7 @@ def end_view(request, url_data):
     pdf_data = pdfkit.from_url(input_url)
     application.pdf = pdf_data
     application.save()
-    return render(request, "end.pug", {**data})
+    return render(request, "end.pug", {**url_data, **data})
 
 
 def download_pdf(request, application_id):
