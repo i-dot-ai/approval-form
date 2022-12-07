@@ -57,3 +57,9 @@ def download_pdf(request, application_id):
     filelike = io.BytesIO(application.pdf)
     response = FileResponse(filelike, as_attachment=True, filename=filename)
     return response
+
+
+def print_view(request, application_id):
+    application = models.Application.objects.get(pk=application_id)
+    data = model_to_dict(application)
+    return render(request, "print.pug", {**data})
