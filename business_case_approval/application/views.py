@@ -44,9 +44,8 @@ def end_view(request, url_data):
     application_id = url_data["application_id"]
     application = models.Application.objects.get(pk=application_id)
     data = model_to_dict(application)
-    input_url = f"http://localhost:8010/application/{application_id}/print"
-    output_filename = "/tmp/applicaton_{application_id}.pdf"
-    pdf_data = pdfkit.from_url(input_url, output_filename)
+    input_url = f"http://localhost:8010/application/{application_id}/print/"
+    pdf_data = pdfkit.from_url(input_url)
     application.pdf = pdf_data
     application.save()
     return render(request, "end.pug", {**data})
